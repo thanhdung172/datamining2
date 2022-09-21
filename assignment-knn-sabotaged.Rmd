@@ -1,0 +1,128 @@
+---
+title: "Assigment - kNN DIY"
+author:
+  - Thanh Dung Nguyen - Author
+  - Duyen Nguyen - Reviewer
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+   html_notebook:
+    toc: true
+    toc_depth: 2
+---
+
+```{r}
+library(tidyverse)
+library(googlesheets4)
+library(class)
+library(caret)
+library(magrittr)
+library(gmodels)
+```
+
+------------------------------------------------------------------------
+
+Choose a suitable dataset from [this](https://github.com/HAN-M3DM-Data-Mining/assignments/tree/master/datasets) folder and train your own kNN model. Follow all the steps from the CRISP-DM model.
+
+## Business Understanding
+Viruses in the blood of blood donors are the cause of a number of diseases. Machine learning (or KNN) can automate and improve the efficiency and accuracy of virus screening. The risk of infection through blood transfusion is also limited and controlled
+
+## Read data
+Read data in csv format from url
+
+```{r}
+url <- "https://raw.githubusercontent.com/HAN-M3DM-Data-Mining/assignments/master/datasets/KNN-hcvdat0.csv"
+rawDF <- read.csv(url)
+```
+
+## Data Understanding
+Get an overview of basic information about the dataset
+The dataset has 14 variables (columns) and 615 observations (rows)
+Variables Category and Sex have character data type, others have numeric 
+
+```{r}
+str(rawDF)
+```
+
+## Data Preparation
+remove the first column from the dataset which contains irrelevant information and the NA values
+
+```{r}
+cleanDF <- rawDF[-1]
+cleanDF1 <- drop_na(cleanDF)
+cleanDF2 <- na.omit(cleanDF1)
+head(cleanDF2)
+```
+
+#checking the counts and proportions of the outcomes (variable Category)
+```{r}
+cntCat <- table(cleanDF2$Category)
+propCat <- round(prop.table(cntCat) * 100 , digits = 1)
+
+cntCat
+propCat
+```
+
+#setting factor type for the variable
+```{r}
+cleanDF1$Category <- factor(cleanDF2$Category, levels = c("0=Blood Donor","0s=suspect Blood Donor", "1=Hepatitis", "2=Fibrosis", "3=Cirrhosis"), labels = c("Blood Donor", "Cannot give blood", "Cannot give blood", "Cannot give blood", "Cannot give blood")) %>% relevel ("Cannot give blood")
+head(cleanDF2, 10)
+```
+
+```{r}
+summary(cleanDF2[c("ALB", "ALP", "ALT")])
+```
+#normalization function
+```{r}
+normalize <- function(x) { 
+  return ((x - min(x)) / (max(x) - min(x))) 
+}
+
+testSet1 <- c(1:5)
+testSet2 <- c(1:5) * 10
+
+cat("testSet1:", testSet1, "\n")
+cat("testSet2:", testSet2, "\n")
+cat("Normalized testSet1:", normalize(testSet1), "\n")
+cat("Normalized testSet2:", normalize(testSet2))
+```
+#normalizing data
+```{r}
+nCols <- dim(cleanDF2)[2]
+cleanDF_n <- sapply(2:nCols,
+                    function(x) {
+  normalize(cleanDF2[, x])
+}) %>% as.data.frame()
+
+summary(cleanDF_n[c("ALB", "ALP", "ALT")])
+```
+#split data set into training and test sets
+```{r}
+set.seed(123)
+data_spl<-sample(1:nrow(cleanDF_n),size=nrow(cleanDF_n)*0.8,replace = FALSE)
+train<-cleanDF_n[data_spl,]
+test<-cleanDF_n[-data_spl,]
+```
+
+#create separate training and tests sets for labels
+```{r}
+train_labels <- cleanDF2[data_spl, 1]
+test_labels <- cleanDF2[-data_spl,1]
+```
+
+
+
+## Modeling
+```{r}
+cleanDF_test_pred <- knn(train = as.matrix(train), test = as.matrix(test), cl = as.matrix(train_labels), k = 11)
+head(cleanDF_test_pred)
+confusionMatrix(cleanDF_test_pred, test_labels[[1]], positive = NULL, dnn = c("Prediction", "True"))
+```
+
+## Evaluation and Deployment
+
+```{r}
+CrossTable(x=as.matrix(test_labels), y=cleanDF_test_pred, prop.chisq=FALSE)
+```
+The total accuracy of the model is 92%, no cases of False Positives (FP), 9 cases of False Negatives (FN), meaning 9 cases were actually Cannot give blood in nature but got predicted as Blood Donor. This is considered risky in the case of a medical model
+
+## Reviewer
