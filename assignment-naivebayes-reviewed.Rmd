@@ -1,8 +1,8 @@
 ---
 title: "Assigment - Naive Bayes DIY"
 author:
-  - name author here - Author
-  - name reviewer here - Reviewer
+  - Duyen Nguyen - Author
+  - Thanh Dung Nguyen - Reviewer
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
    html_notebook:
